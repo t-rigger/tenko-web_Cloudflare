@@ -115,14 +115,23 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
-        // Cloudflare Pages の環境変数から供給される（後で設定）
-        // 直接埋め込む場合はこちらを編集してください
-        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwMLJIVKmo2syvFnWKNvke4_VahRwftJFEec6AGSf2jerk7qabHqj_LdCERBTVaGK4d/exec";
-        const GAS_API_KEY = ""; // Cloudflareの環境変数または直接入力
+        let gasConfig = null;
+
+        async function fetchConfig() {
+            try {
+                const response = await fetch('/api/config');
+                gasConfig = await response.json();
+            } catch (error) {
+                console.error("Failed to fetch config:", error);
+            }
+        }
 
         async function loadOptimalQrCode() {
+            if (!gasConfig) await fetchConfig();
+            if (!gasConfig || !gasConfig.gasApiUrl) return;
+
             try {
-                const response = await fetch(`${GAS_API_URL}?action=get_active_qr&api_key=${GAS_API_KEY}`);
+                const response = await fetch(`${gasConfig.gasApiUrl}?action=get_active_qr&api_key=${gasConfig.gasApiKey}`);
                 const data = await response.json();
 
                 const qrContainer = document.getElementById('qr-container');
