@@ -127,15 +127,28 @@
         }
 
         async function loadOptimalQrCode() {
+            const qrContainer = document.getElementById('qr-container');
+            const statusMessage = document.getElementById('status-message');
+
             if (!gasConfig) await fetchConfig();
-            if (!gasConfig || !gasConfig.gasApiUrl) return;
+
+            if (!gasConfig || !gasConfig.gasApiUrl) {
+                console.error("Configuration missing:", gasConfig);
+                statusMessage.innerText = '設定（GAS_API_URL）が見つかりません。\nCloudflareの環境変数を確認してください。';
+                return;
+            }
+
+            console.log("Fetching QR from GAS:", gasConfig.gasApiUrl);
 
             try {
                 const response = await fetch(`${gasConfig.gasApiUrl}?action=get_active_qr&api_key=${gasConfig.gasApiKey}`);
-                const data = await response.json();
 
-                const qrContainer = document.getElementById('qr-container');
-                const statusMessage = document.getElementById('status-message');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log("GAS Response:", data);
 
                 qrContainer.innerHTML = '';
 
@@ -149,13 +162,15 @@
                         height: 256,
                         colorDark: "#000000",
                         colorLight: "#ffffff",
-                        correctLevel: QRCode.CorrectLevel.H
+                        correctLevel: QRCode.Level ? QRCode.Level.H : QRCode.CorrectLevel.H
                     });
                     statusMessage.innerText = '';
+                } else {
+                    statusMessage.innerText = '有効なQRコードデータがありません。';
                 }
             } catch (error) {
                 console.error("Failed to load QR code:", error);
-                document.getElementById('qr-container').innerHTML = '<p style="color: red;">QRコードの読み込みに失敗しました。再読み込みしてください。</p>';
+                statusMessage.innerText = 'QRコードの取得に失敗しました。' + error.message;
             }
         }
 
