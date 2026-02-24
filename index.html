@@ -133,9 +133,7 @@
             if (!gasConfig) await fetchConfig();
 
             if (!gasConfig || !gasConfig.gasApiUrl) {
-                console.error("Configuration missing:", gasConfig);
-                const keysFound = (gasConfig && gasConfig.debug && gasConfig.debug.allKeys) ? gasConfig.debug.allKeys.join(', ') : '情報なし';
-                statusMessage.innerText = `設定（GAS_API_URL）が見つかりません。\nCloudflareの環境変数を確認してください。\n検出されたキー: [${keysFound}]`;
+                statusMessage.innerText = 'エラー: 設定の読み込みに失敗しました。管理者に連絡してください。';
                 return;
             }
 
@@ -145,7 +143,7 @@
                 const response = await fetch(`${gasConfig.gasApiUrl}?action=get_active_qr&api_key=${gasConfig.gasApiKey}`);
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP ${response.status}`);
                 }
 
                 const data = await response.json();
@@ -163,15 +161,15 @@
                         height: 256,
                         colorDark: "#000000",
                         colorLight: "#ffffff",
-                        correctLevel: QRCode.Level ? QRCode.Level.H : QRCode.CorrectLevel.H
+                        correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.H : 1
                     });
                     statusMessage.innerText = '';
                 } else {
                     statusMessage.innerText = '有効なQRコードデータがありません。';
                 }
             } catch (error) {
-                console.error("Failed to load QR code:", error);
-                statusMessage.innerText = 'QRコードの取得に失敗しました。' + error.message;
+                // エラーの詳細（URLなど）は表示しない
+                statusMessage.innerText = 'QRコードの取得に失敗しました。再読み込みしてください。';
             }
         }
 

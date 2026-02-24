@@ -1,17 +1,12 @@
 export async function onRequest(context) {
     const { env } = context;
+    // /api/config はミドルウェアのガード対象なので、認証済みユーザーのみ到達可能
 
-    // キー名にスペースが含まれていても見つけられるように、全キーをループして正規化して検索
     const findEnv = (keyName) => {
-        // 直接一致があればそれを返す
         if (env[keyName]) return env[keyName];
-
-        // 全キーをループして、スペースを除去した名前で一致するものを探す
         const targetKey = keyName.trim();
         for (const [k, v] of Object.entries(env)) {
-            if (k.trim() === targetKey) {
-                return v;
-            }
+            if (k.trim() === targetKey) return v;
         }
         return null;
     };
@@ -19,14 +14,18 @@ export async function onRequest(context) {
     const gasApiUrl = findEnv('GAS_API_URL');
     const gasApiKey = findEnv('GAS_API_KEY');
 
+    if (!gasApiUrl) {
+        // デバッグ情報は一切返さない（キー一覧の漏洩を防ぐ）
+        return new Response(JSON.stringify({ error: 'config_missing' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+
     return new Response(JSON.stringify({
-        gasApiUrl: (gasApiUrl || '').trim(),
-        gasApiKey: (gasApiKey || '').trim(),
-        debug: {
-            hasUrl: !!gasApiUrl,
-            hasKey: !!gasApiKey,
-            allKeys: Object.keys(env)
-        }
+        gasApiUrl: gasApiUrl.trim(),
+        gasApiKey: (gasApiKey || '').trim()
+        // debug フィールドは本番では削除
     }), {
         headers: { 'Content-Type': 'application/json' }
     });

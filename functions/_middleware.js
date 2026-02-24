@@ -1,25 +1,73 @@
+// HMACでセッションIDの署名を検証
+async function verifySessionToken(token, secret) {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 2) return false;
+        const [sessionId, sigHex] = parts;
+
+        const encoder = new TextEncoder();
+        const key = await crypto.subtle.importKey(
+            'raw',
+            encoder.encode(secret),
+            { name: 'HMAC', hash: 'SHA-256' },
+            false,
+            ['verify']
+        );
+
+        const sigBytes = new Uint8Array(sigHex.match(/.{2}/g).map(b => parseInt(b, 16)));
+        return await crypto.subtle.verify('HMAC', key, sigBytes, encoder.encode(sessionId));
+    } catch {
+        return false;
+    }
+}
+
 export async function onRequest(context) {
     const { request, next, env } = context;
     const url = new URL(request.url);
 
-    // /login と /api/* はスルーする
-    if (url.pathname === '/login' || url.pathname.startsWith('/api/') || url.pathname.includes('.')) {
+    // 静的ファイル、ログインページ、APIはスルー
+    if (
+        url.pathname === '/login' ||
+        url.pathname === '/login.html' ||
+        url.pathname.startsWith('/api/') ||
+        url.pathname.includes('.')
+    ) {
         return next();
     }
 
-    // Cookie を取得
+    // SESSION_SECRET が未設定の場合は全アクセスをブロック
+    const sessionSecret = (env.SESSION_SECRET || '').trim();
+    if (!sessionSecret) {
+        return Response.redirect(new URL('/login', request.url), 302);
+    }
+
+    // Cookie からセッショントークンを取得
     const cookieHeader = request.headers.get('Cookie') || '';
-    const cookies = Object.fromEntries(cookieHeader.split(';').map(c => c.trim().split('=')));
+    const cookies = Object.fromEntries(
+        cookieHeader.split(';')
+            .map(c => c.trim())
+            .filter(c => c.includes('='))
+            .map(c => {
+                const idx = c.indexOf('=');
+                return [c.slice(0, idx), c.slice(idx + 1)];
+            })
+    );
 
-    // セッショントークンの検証 (簡易的に環境変数の値と一致するかチェック)
-    // 実際にはランダムな文字列を生成して保存するのが理想だが、Railsの構成に寄せてパスワード自体をキーに代用
     const sessionToken = cookies['session_token'];
-    const expectedToken = btoa(`${env.ADMIN_EMAIL}:${env.ADMIN_PASSWORD}`);
 
-    if (sessionToken === expectedToken) {
+    if (!sessionToken) {
+        return Response.redirect(new URL('/login', request.url), 302);
+    }
+
+    // HMACで署名を検証
+    const isValid = await verifySessionToken(sessionToken, sessionSecret);
+
+    if (isValid) {
         return next();
     }
 
-    // 認証に失敗した場合はログイン画面へリダイレクト
-    return Response.redirect(new URL('/login', request.url), 302);
+    // 無効なセッション → Cookieを削除してログインへ
+    const redirectResponse = Response.redirect(new URL('/login', request.url), 302);
+    redirectResponse.headers.set('Set-Cookie', 'session_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0');
+    return redirectResponse;
 }
