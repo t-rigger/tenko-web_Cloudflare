@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>友だち追加 - 点呼システム</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            position: relative;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            background: #eee;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        #qr-container {
+            margin: 2rem 0;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #status-message {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            white-space: pre-line;
+        }
+
+        .loading {
+            color: #667eea;
+            font-size: 1.1rem;
+        }
+
+        .admin-link {
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .admin-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .admin-link a:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <button class="logout-btn" onclick="logout()">ログアウト</button>
+        <h1>📱 LINE友だち追加</h1>
+        <p class="subtitle">下記のQRコードを読み取ってください</p>
+
+        <div id="qr-container">
+            <p class="loading">読み込み中...</p>
+        </div>
+
+        <p id="status-message"></p>
+
+        <div class="admin-link">
+            <a href="https://docs.google.com/spreadsheets/d/1WqOsJmpEYnbvMMZAipC_I4ErfMinJKws843xB6G3AIo/"
+                target="_blank">シフト入力はこちら</a>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        // Cloudflare Pages の環境変数から供給される（後で設定）
+        // 直接埋め込む場合はこちらを編集してください
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwMLJIVKmo2syvFnWKNvke4_VahRwftJFEec6AGSf2jerk7qabHqj_LdCERBTVaGK4d/exec";
+        const GAS_API_KEY = ""; // Cloudflareの環境変数または直接入力
+
+        async function loadOptimalQrCode() {
+            try {
+                const response = await fetch(`${GAS_API_URL}?action=get_active_qr&api_key=${GAS_API_KEY}`);
+                const data = await response.json();
+
+                const qrContainer = document.getElementById('qr-container');
+                const statusMessage = document.getElementById('status-message');
+
+                qrContainer.innerHTML = '';
+
+                if (data.isFull) {
+                    qrContainer.innerHTML = '<p style="font-size:3rem;">⚠️</p>';
+                    statusMessage.innerText = 'システムの上限に達しました。\nシステム開発担当者にご連絡ください。';
+                } else if (data.qrUrl) {
+                    new QRCode(qrContainer, {
+                        text: data.qrUrl,
+                        width: 256,
+                        height: 256,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                    statusMessage.innerText = '';
+                }
+            } catch (error) {
+                console.error("Failed to load QR code:", error);
+                document.getElementById('qr-container').innerHTML = '<p style="color: red;">QRコードの読み込みに失敗しました。再読み込みしてください。</p>';
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/logout');
+            window.location.href = '/login';
+        }
+
+        // ページ読み込み時に実行
+        document.addEventListener('DOMContentLoaded', loadOptimalQrCode);
+
+        // 5秒ごとに自動更新
+        setInterval(loadOptimalQrCode, 5000);
+    </script>
+</body>
+
+</html>
