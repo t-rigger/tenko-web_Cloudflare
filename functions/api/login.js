@@ -4,10 +4,12 @@ export async function onRequestPost(context) {
 
     const { email, password } = body;
 
-    const adminEmail = env.ADMIN_EMAIL || 'admin@example.com';
-    const adminPassword = env.ADMIN_PASSWORD || 'password123';
+    const adminEmail = (env.ADMIN_EMAIL || 'admin@example.com').trim();
+    const adminPassword = (env.ADMIN_PASSWORD || 'password123').trim();
+    const inputEmail = (email || '').trim();
+    const inputPassword = (password || '').trim();
 
-    if (email === adminEmail && password === adminPassword) {
+    if (inputEmail === adminEmail && inputPassword === adminPassword) {
         // 認証成功
         const sessionToken = btoa(`${adminEmail}:${adminPassword}`);
 
