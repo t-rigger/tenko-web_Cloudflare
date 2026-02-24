@@ -134,7 +134,8 @@
 
             if (!gasConfig || !gasConfig.gasApiUrl) {
                 console.error("Configuration missing:", gasConfig);
-                statusMessage.innerText = '設定（GAS_API_URL）が見つかりません。\nCloudflareの環境変数を確認してください。';
+                const keysFound = (gasConfig && gasConfig.debug && gasConfig.debug.allKeys) ? gasConfig.debug.allKeys.join(', ') : '情報なし';
+                statusMessage.innerText = `設定（GAS_API_URL）が見つかりません。\nCloudflareの環境変数を確認してください。\n検出されたキー: [${keysFound}]`;
                 return;
             }
 
