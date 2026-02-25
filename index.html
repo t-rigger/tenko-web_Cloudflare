@@ -153,7 +153,7 @@
 
                 if (data.isFull) {
                     qrContainer.innerHTML = '<p style="font-size:3rem;">⚠️</p>';
-                    statusMessage.innerText = 'システムの上限に達しました。\nシステム開発担当者にご連絡ください。';
+                    statusMessage.innerText = '友達登録人数の上限に達しました。\nシステム開発担当者にご連絡ください。';
                 } else if (data.qrUrl) {
                     new QRCode(qrContainer, {
                         text: data.qrUrl,
